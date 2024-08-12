@@ -51,8 +51,8 @@ jobs:
   code-coverage:
     name: code coverage
     runs-on: ubuntu-latest
-    needs:
-      - unit-testing
+    # needs:
+    #   - unit-testing
 
     steps:
       - name: checkout
