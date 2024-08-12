@@ -42,5 +42,5 @@ jobs:
       - name: archive test results
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results ${{ matrix.os }}-${{ matrix.node-version }}
           path: test-results.xml
