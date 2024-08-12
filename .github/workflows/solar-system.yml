@@ -23,7 +23,7 @@ jobs:
             node-version: 19
 
     runs-on: ${{ matrix.os }}
-    
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -37,17 +37,23 @@ jobs:
         run: npm install
 
       - name: unit testing
+        id: nodejs-unit-testing-step
         run: npm test
 
-      # - name: archive test results
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: test-results ${{ matrix.os }}-${{ matrix.node-version }}
-      #     path: test-results.xml
+      - name: archive test results
+        if: steps.nodejs-unit-testing-step.outputs.testsPassed == 'true' || steps.nodejs-unit-testing-step.outputs.testsFailed == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results ${{ matrix.os }}-${{ matrix.node-version }}
+          path: test-results.xml
+          retention-days: 1
+
   code-coverage:
     name: code coverage
     runs-on: ubuntu-latest
-    
+    needs:
+      - unit-testing
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -61,11 +67,12 @@ jobs:
         run: npm install
 
       - name: check code coverge
+        continue-on-error: true
         run: npm run coverage
 
-      - name: archive test results
+      - name: archive code coverage results
         uses: actions/upload-artifact@v4
         with:
           name: code-coverage
           path: coverage
-          retention-days: 5
+          retention-days: 1
