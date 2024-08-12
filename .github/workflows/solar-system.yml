@@ -98,7 +98,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
-          tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system:${{ github.sha }}
+          tags: ${{ vars.DOCKERHUB_USERNAME }}/solar-system-app:${{ github.sha }}
 
       - name: run docker
         run: |
@@ -114,4 +114,4 @@ jobs:
           echo $IP
 
           echo Testing Image URL using wget
-          wget -q -O http://$IP:3000/live | grep live
+          wget -q -O - localhost:3000/live | grep live
