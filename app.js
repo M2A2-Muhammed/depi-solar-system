@@ -20,7 +20,7 @@ mongoose.connect(process.env.MONGO_URI, {
     if (err) {
         console.log("error!! " + err)
     } else {
-      //  console.log("MongoDB Connection Successful")
+        alert("MongoDB Connection Successful")
     }
 })
 
@@ -39,7 +39,7 @@ var planetModel = mongoose.model('planets', dataSchema);
 
 
 app.post('/planet',   function(req, res) {
-   // console.log("Received Planet ID " + req.body.id)
+   alert("Received Planet ID " + req.body.id)
     planetModel.findOne({
         id: req.body.id
     }, function(err, planetData) {
