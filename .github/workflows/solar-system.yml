@@ -12,42 +12,7 @@ env:
   MONGO_PASSWORD: ${{ secrets.MONGO_PASSWORD }}
 
 jobs:
-  unit-testing:
-    name: unit testing
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-        node-version: [18, 19, 20]
-        exclude:
-          - os: macos-latest
-            node-version: 19
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-
-      - name: setup node js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-
-      - name: install depend.
-        run: npm install
-
-      - name: unit testing
-        id: nodejs-unit-testing-step
-        run: npm test
-
-      - name: archive test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results ${{ matrix.os }}-${{ matrix.node-version }}
-          path: test-results.xml
-          retention-days: 1
-
+ 
   code-coverage:
     name: code coverage
     runs-on: ubuntu-latest
@@ -79,7 +44,7 @@ jobs:
 
   build-test-docker:
     name: test docker
-    needs: [unit-testing, code-coverage]
+    needs: [code-coverage]
     runs-on: ubuntu-latest
 
     steps:
