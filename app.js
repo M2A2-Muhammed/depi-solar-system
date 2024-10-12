@@ -68,7 +68,10 @@ app.get('/os',   function(req, res) {
 app.get('/live',   function(req, res) {
     res.setHeader('Content-Type', 'application/json');
     res.send({
-        "status": "live"
+        "status": "live",
+        "db_url": process.env.MONGO_URI,
+        "user": process.env.MONGO_USERNAME,
+        "pass": process.env.MONGO_PASSWORD
     });
 })
 
