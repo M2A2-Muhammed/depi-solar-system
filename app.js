@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const app = express();
 const cors = require('cors');
 const fs = require('fs');
+const { MongoClient } = require('mongodb');
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '/')));
@@ -38,12 +39,16 @@ const options = {
     useUnifiedTopology: true
 };
 
-mongoose.connect(uri, options)
+let mongodb; // Declare db first
+
+async function connectToDatabase() {
+    const client = await MongoClient.connect(uri, options);
+    mongodb = client.db(db); // Initialize db here
+}
+
+connectToDatabase()
     .then(async () => {
         console.log('Connected to MongoDB');
-
-        // Create database and collection
-        const db = mongoose.connection.useDb(db);
 
         var dataSchema = new mongoose.Schema({
             name: String,
@@ -54,7 +59,7 @@ mongoose.connect(uri, options)
             distance: String
         });
 
-        const Planet = db.model(collection, dataSchema);
+        const Planet = mongodb.model(collection, dataSchema);
 
         // Check if the collection is empty
         const count = await Planet.countDocuments();
@@ -109,6 +114,28 @@ app.post('/planet', function (req, res) {
             res.status(500).send('Internal server error. Please try again later.');
         });
 })
+
+app.get('/test/:id', function (req, res) {
+    const requestedId = Number(req.params.id); // Extract ID from URL parameter
+    console.log("requestedId: " + requestedId);
+
+    // Validate ID (assuming valid IDs are 0-9)
+    if (isNaN(requestedId) || requestedId < 0 || requestedId > 9) {
+        return res.status(400).send('Invalid planet ID. Please provide a number between 0 and 9.');
+    }
+
+    planetModel.findOne({ id: requestedId })
+        .then(planetData => {
+            if (!planetData) {
+                return res.status(404).send(`Planet with ID ${requestedId} not found.`);
+            }
+            res.send(planetData);
+        })
+        .catch(err => {
+            console.error(err); // Log actual error details for debugging
+            res.status(500).send('Internal server error. Please try again later.');
+        });
+});
 
 app.get('/', async (req, res) => {
     res.sendFile(path.join(__dirname, '/', 'index.html'));
