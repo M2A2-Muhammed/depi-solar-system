@@ -5,28 +5,77 @@ const bodyParser = require('body-parser');
 const mongoose = require("mongoose");
 const app = express();
 const cors = require('cors');
-
+const fs = require('fs');
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '/')));
 app.use(cors())
 
-mongoose.connect(process.env.MONGO_URI, {
-    user: process.env.MONGO_USERNAME,
-    pass: process.env.MONGO_PASSWORD,
+// mongoose.connect(process.env.MONGO_URI, {
+//     user: process.env.MONGO_USERNAME,
+//     pass: process.env.MONGO_PASSWORD,
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true
+// }, function (err) {
+//     if (err) {
+//         console.log("error!! " + err)
+//     } else {
+//         console.log("MongoDB Connection Successful")
+//     }
+// })
+
+
+const pemFile = process.env.S3_MONGO_ACCESS_KEY || "global-bundle.pem"; // Path to your PEM file
+const db = process.env.MONGO_DB || "superData";
+const collection = process.env.MONGO_COLLECTION || "planets";
+const data_file = process.env.S3_MONGO_DB_KEY || "superData.planets.json";
+const uri = process.env.MONO_URI ||
+    "mongodb://db_admin:db_12345@solar-system-db.cluster-cxu20w2ieheu.us-east-2.docdb.amazonaws.com:27017/?tls=true&tlsCAFile=${pemFile}&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false";
+
+// MongoDB SSL options
+const options = {
     useNewUrlParser: true,
     useUnifiedTopology: true
-}, function (err) {
-    if (err) {
-        console.log("error!! " + err)
-    } else {
-        console.log("MongoDB Connection Successful")
-    }
-})
+};
 
-var Schema = mongoose.Schema;
+mongoose.connect(uri, options)
+    .then(async () => {
+        console.log('Connected to MongoDB');
 
-var dataSchema = new Schema({
+        // Create database and collection
+        const db = mongoose.connection.useDb(db);
+
+        var dataSchema = new mongoose.Schema({
+            name: String,
+            id: Number,
+            description: String,
+            image: String,
+            velocity: String,
+            distance: String
+        });
+
+        const Planet = db.model(collection, dataSchema);
+
+        // Check if the collection is empty
+        const count = await Planet.countDocuments();
+        if (count === 0) {
+            console.log('Collection is empty. Inserting data...');
+
+            // Load data from JSON file
+            const data = JSON.parse(fs.readFileSync(data_file, 'utf8'));
+
+            // Insert data into the collection
+            await Planet.insertMany(data);
+            console.log('Data inserted successfully');
+        } else {
+            console.log('Collection already contains data');
+        }
+    })
+    .catch(err => {
+        console.error('MongoDB connection error:', err);
+    });
+
+var dataSchema = new mongoose.Schema({
     name: String,
     id: Number,
     description: String,
@@ -34,7 +83,8 @@ var dataSchema = new Schema({
     velocity: String,
     distance: String
 });
-var planetModel = mongoose.model('planets', dataSchema);
+
+var planetModel = mongoose.model(collection, dataSchema);
 
 
 
