@@ -2,138 +2,121 @@ const path = require('path');
 const express = require('express');
 const OS = require('os');
 const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const app = express();
-const cors = require('cors');
+const cors = require('cors')
 const fs = require('fs');
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '/')));
-app.use(cors());
+app.use(cors())
 
 const pemFile = process.env.S3_MONGO_ACCESS_KEY || "global-bundle.pem"; // Path to your PEM file
 const collection = process.env.MONGO_COLLECTION || "planets";
 const data_file = process.env.S3_MONGO_DB_KEY || "superData.planets.json";
 const uri = process.env.MONGO_URI ||
-    `mongodb://db_admin:db_12345@solar-system-db.cluster-cxu20w2ieheu.us-east-2.docdb.amazonaws.com:27017/solar-system-db?tls=true&tlsCAFile=${pemFile}&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false`;
+    `mongodb://db_admin:db_12345@solar-system-db.cluster-cxu20w2ieheu.us-east-2.docdb.amazonaws.com:27017/${db}?tls=true&tlsCAFile=${pemFile}&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false`;
 
-let Planet; // Declare variable outside
 
-// MongoDB connection using Mongoose
+// Planet schema
+const planetSchema = new mongoose.Schema({
+    name: String,
+    id: Number,
+    description: String,
+    image: String,
+    velocity: String,
+    distance: String
+});
+
+const Planet = mongoose.model(collection, planetSchema);
+
+// Function to check and insert data
+async function checkAndInsertData() {
+    try {
+
+        const count = await Planet.countDocuments();
+        console.log('Document count:', count);
+
+        if (count === 0) {
+            console.log('Collection is empty. Inserting data...');
+            const data = JSON.parse(fs.readFileSync(data_file, 'utf8'));
+
+            // Remove _id if present
+            const cleanedData = data.map(item => {
+                delete item._id; // Remove the _id field
+                return item;
+            });
+
+            await Planet.insertMany(data);
+            console.log('Data inserted successfully');
+        } else {
+            console.log('Collection already contains data');
+        }
+    } catch (err) {
+        console.error('Error checking or inserting data:', err);
+    }
+}
+
+
+
 mongoose.connect(uri, {
     useNewUrlParser: true,
-    useUnifiedTopology: true,
-    tls: true,
-    tlsCAFile: pemFile,
-}).then(async () => {
-    console.log('Connected to MongoDB');
-
-    // Define the data schema
-    const dataSchema = new mongoose.Schema({
-        _id: {
-            type: mongoose.Schema.Types.ObjectId,
-            auto: true // Automatically create an ObjectId if not provided
-        },
-        name: String,
-        id: Number,
-        description: String,
-        image: String,
-        velocity: String,
-        distance: String
-    });
-
-    const Planet = mongoose.model(collection, dataSchema);
-
-    // Check if the collection is empty
-    const count = await Planet.countDocuments();
-    if (count === 0) {
-        console.log('Collection is empty. Inserting data...');
-
-        // Load data from JSON file
-        const data = JSON.parse(fs.readFileSync(data_file, 'utf8'));
-
-        // Insert data into the collection
-        await Planet.insertMany(data);
-        console.log('Data inserted successfully');
+    useUnifiedTopology: true
+}, function (err) {
+    if (err) {
+        console.log("error!! " + err);
     } else {
-        console.log('Collection already contains data');
+        console.log("MongoDB Connection Successful");
+
+        checkAndInsertData();
     }
-}).catch(err => {
-    console.error('MongoDB connection error:', err);
 });
 
-// POST request to fetch planet data by ID
-app.post('/planet', async (req, res) => {
-    const requestedId = Number(req.body.id);
-    console.log("requestedId: " + requestedId);
 
-    // Validate ID (assuming valid IDs are 0-9)
-    if (isNaN(requestedId) || requestedId < 0 || requestedId > 9) {
-        return res.status(400).send('Invalid planet ID. Please provide a number between 0 and 9.');
-    }
-
-    try {
-        const planetData = await Planet.findOne({ id: requestedId });
-        if (!planetData) {
-            return res.status(404).send(`Planet with ID ${requestedId} not found.`);
+app.post('/planet', function (req, res) {
+    // console.log("Received Planet ID " + req.body.id)
+    Planet.findOne({
+        id: req.body.id
+    }, function (err, planetData) {
+        if (err) {
+            //alert("Ooops, We only have 9 planets and a sun. Select a number from 0 - 9")
+            res.send("Error in Planet Data")
+        } else {
+            res.send(planetData);
         }
-        res.send(planetData);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Internal server error. Please try again later.');
-    }
+    })
+})
+
+app.get('/', async (req, res) => {
+    res.sendFile(path.join(__dirname, '/', 'index.html'));
 });
 
-// GET request to fetch planet data by ID
-app.get('/test/:id', async (req, res) => {
-    const requestedId = Number(req.params.id);
-    console.log("requestedId: " + requestedId);
 
-    // Validate ID (assuming valid IDs are 0-9)
-    if (isNaN(requestedId) || requestedId < 0 || requestedId > 9) {
-        return res.status(400).send('Invalid planet ID. Please provide a number between 0 and 9.');
-    }
-
-    try {
-        const planetData = await Planet.findOne({ id: requestedId });
-        if (!planetData) {
-            return res.status(404).send(`Planet with ID ${requestedId} not found.`);
-        }
-        res.send(planetData);
-    } catch (err) {
-        console.error(err);
-        res.status(500).send('Internal server error. Please try again later.');
-    }
-});
-
-// Serve the index.html file
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// OS and server status endpoints
-app.get('/os', (req, res) => {
-    res.json({
+app.get('/os', function (req, res) {
+    res.setHeader('Content-Type', 'application/json');
+    res.send({
         "os": OS.hostname(),
         "env": process.env.NODE_ENV
     });
-});
+})
 
-app.get('/live', (req, res) => {
-    res.json({
+app.get('/live', function (req, res) {
+    res.setHeader('Content-Type', 'application/json');
+    res.send({
         "status": "live"
     });
-});
+})
 
-app.get('/ready', (req, res) => {
-    res.json({
+app.get('/ready', function (req, res) {
+    res.setHeader('Content-Type', 'application/json');
+    res.send({
         "status": "ready"
     });
-});
+})
 
-// Start the server
 app.listen(3000, () => {
     console.log("Server successfully running on port - " + 3000);
-});
+})
+
 
 module.exports = app;
