@@ -11,12 +11,30 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, '/')));
 app.use(cors())
 
-const pemFile = process.env.S3_MONGO_ACCESS_KEY || "global-bundle.pem"; // Path to your PEM file
-const collection = process.env.MONGO_COLLECTION || "planets";
-const data_file = process.env.S3_MONGO_DB_KEY || "superData.planets.json";
-const uri = process.env.MONGO_URI ||
-    `mongodb://db_admin:db_12345@solar-system-db.cluster-cxu20w2ieheu.us-east-2.docdb.amazonaws.com:27017/${db}?tls=true&tlsCAFile=${pemFile}&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false`;
+const dbCollection = "planets";
 
+const pemFile = path.join(__dirname, "DB","global-bundle.pem"); 
+const dataFile = path.join(__dirname, "DB","superData.planets.json");
+const uri = process.env.MONGO_URI ||
+    'mongodb://db_admin:db_12345@solar-system-db.cluster-cxu20w2ieheu.us-east-2.docdb.amazonaws.com:27017/solarDB?replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false';
+
+
+
+
+mongoose.connect(uri, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+    tls: true,
+    tlsCAFile: pemFile
+}, function (err) {
+    if (err) {
+        console.log("error!! " + err);
+    } else {
+        console.log("MongoDB Connection Successful");
+
+        checkAndInsertData();
+    }
+});
 
 // Planet schema
 const planetSchema = new mongoose.Schema({
@@ -28,18 +46,18 @@ const planetSchema = new mongoose.Schema({
     distance: String
 });
 
-const Planet = mongoose.model(collection, planetSchema);
+const Planets = mongoose.model(dbCollection, planetSchema);
 
 // Function to check and insert data
 async function checkAndInsertData() {
     try {
 
-        const count = await Planet.countDocuments();
+        const count = await Planets.countDocuments();
         console.log('Document count:', count);
 
         if (count === 0) {
             console.log('Collection is empty. Inserting data...');
-            const data = JSON.parse(fs.readFileSync(data_file, 'utf8'));
+            const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
 
             // Remove _id if present
             const cleanedData = data.map(item => {
@@ -56,21 +74,6 @@ async function checkAndInsertData() {
         console.error('Error checking or inserting data:', err);
     }
 }
-
-
-
-mongoose.connect(uri, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}, function (err) {
-    if (err) {
-        console.log("error!! " + err);
-    } else {
-        console.log("MongoDB Connection Successful");
-
-        checkAndInsertData();
-    }
-});
 
 
 app.post('/planet', function (req, res) {
