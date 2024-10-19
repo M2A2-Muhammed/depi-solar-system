@@ -13,8 +13,8 @@ app.use(cors())
 
 const dbCollection = "planets";
 
-const pemFile = path.join(__dirname, "DB","global-bundle.pem"); 
-const dataFile = path.join(__dirname, "DB","superData.planets.json");
+const pemFile = path.join(__dirname, "DB", "global-bundle.pem");
+const dataFile = path.join(__dirname, "DB", "superData.planets.json");
 const uri = process.env.MONGO_URI ||
     'mongodb://db_admin:db_12345@solar-system-db.cluster-cxu20w2ieheu.us-east-2.docdb.amazonaws.com:27017/solarDB?replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false';
 
@@ -65,7 +65,7 @@ async function checkAndInsertData() {
                 return item;
             });
 
-            await Planet.insertMany(data);
+            await Planets.insertMany(data);
             console.log('Data inserted successfully');
         } else {
             console.log('Collection already contains data');
@@ -78,7 +78,7 @@ async function checkAndInsertData() {
 
 app.post('/planet', function (req, res) {
     // console.log("Received Planet ID " + req.body.id)
-    Planet.findOne({
+    Planets.findOne({
         id: req.body.id
     }, function (err, planetData) {
         if (err) {
